@@ -8,12 +8,66 @@ datasource db {
 }
 
 model User {
-  id           Int      @id @default(autoincrement())
-  email        String   @unique
+  id           Int       @id @default(autoincrement())
+  email        String    @unique
   name         String
   password     String
   role         String
   refreshToken String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  
+  // Hierarchical relationship: owner-employee
+  ownerId      Int?      // ID of the owner (null for owners themselves)
+  owner        User?     @relation("OwnerEmployees", fields: [ownerId], references: [id], onDelete: Cascade)
+  employees    User[]    @relation("OwnerEmployees")
+  
+  // Expense relationships
+  expenses     Expense[]
+  
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([ownerId])
+  @@map("users")
+}
+
+model ExpenseCategory {
+  id          Int       @id @default(autoincrement())
+  name        String
+  description String?
+  color       String?   // For UI display
+  icon        String?   // For UI display
+  
+  // Relationships
+  expenses    Expense[]
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([name])
+  @@map("expense_categories")
+}
+
+model Expense {
+  id          Int       @id @default(autoincrement())
+  amount      Decimal   @db.Decimal(10, 2) // Supports up to 99,999,999.99
+  description String?
+  date        DateTime  @default(now())
+  
+  // Relationships
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  categoryId  Int
+  category    ExpenseCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  
+  // Optional receipt/image attachment
+  receiptUrl  String?
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([categoryId])
+  @@index([date])
+  @@map("expenses")
 }
