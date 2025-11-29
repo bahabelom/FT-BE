@@ -61,10 +61,10 @@ export class ExpensesService {
   private transformExpense(expense: any) {
     return {
       id: expense.id,
-      title: expense.title || '',
+      title: expense.title || 'Untitled Expense',
       amount: Number(expense.amount),
       date: expense.date.toISOString(),
-      category: expense.category,
+      category: expense.category || 'Other',
       description: expense.description || null,
       userId: expense.userId.toString(),
       createdAt: expense.createdAt.toISOString(),

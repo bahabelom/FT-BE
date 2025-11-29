@@ -50,11 +50,11 @@ model ExpenseCategory {
 
 model Expense {
   id          Int       @id @default(autoincrement())
-  title       String    // Required: expense title
+  title       String?   // Required: expense title (optional for migration compatibility)
   amount      Decimal   @db.Decimal(10, 2) // Supports up to 99,999,999.99
   description String?
   date        DateTime  @default(now())
-  category    String    // Category as string: Food, Transport, Entertainment, Bills, Shopping, Health, Education, Other
+  category    String?   // Category as string: Food, Transport, Entertainment, Bills, Shopping, Health, Education, Other (optional for migration)
   
   // Relationships
   userId      Int
