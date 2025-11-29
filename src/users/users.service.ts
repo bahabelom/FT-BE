@@ -24,8 +24,11 @@ export class UsersService {
 
     return await this.prisma.user.create({
       data: {
-        ...createUserDto,
+        name: createUserDto.name,
+        email: createUserDto.email,
+        phone: createUserDto.phone,
         password: hashedPassword,
+        role: 'user', // Default role for new registrations
       },
     });
   }
