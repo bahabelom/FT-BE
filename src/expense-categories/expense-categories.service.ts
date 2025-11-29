@@ -25,26 +25,12 @@ export class ExpenseCategoriesService {
   async findAll() {
     return await this.prisma.expenseCategory.findMany({
       orderBy: { name: 'asc' },
-      include: {
-        _count: {
-          select: {
-            expenses: true,
-          },
-        },
-      },
     });
   }
 
   async findOne(id: number) {
     const category = await this.prisma.expenseCategory.findUnique({
       where: { id },
-      include: {
-        _count: {
-          select: {
-            expenses: true,
-          },
-        },
-      },
     });
 
     if (!category) {
@@ -78,8 +64,9 @@ export class ExpenseCategoriesService {
     const category = await this.findOne(id);
 
     // Check if category is being used by any expenses
+    const categoryName = category.name;
     const expenseCount = await this.prisma.expense.count({
-      where: { categoryId: id },
+      where: { category: categoryName },
     });
 
     if (expenseCount > 0) {

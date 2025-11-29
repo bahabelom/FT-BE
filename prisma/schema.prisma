@@ -23,6 +23,7 @@ model User {
   
   // Expense relationships
   expenses     Expense[]
+  budgets      Budget[]
   
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -31,15 +32,14 @@ model User {
   @@map("users")
 }
 
+// ExpenseCategory model kept for backward compatibility but not used in new API
+// Categories are now stored as strings in Expense model
 model ExpenseCategory {
   id          Int       @id @default(autoincrement())
   name        String
   description String?
   color       String?   // For UI display
   icon        String?   // For UI display
-  
-  // Relationships
-  expenses    Expense[]
   
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -50,25 +50,39 @@ model ExpenseCategory {
 
 model Expense {
   id          Int       @id @default(autoincrement())
+  title       String    // Required: expense title
   amount      Decimal   @db.Decimal(10, 2) // Supports up to 99,999,999.99
   description String?
   date        DateTime  @default(now())
+  category    String    // Category as string: Food, Transport, Entertainment, Bills, Shopping, Health, Education, Other
   
   // Relationships
   userId      Int
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   
-  categoryId  Int
-  category    ExpenseCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([date])
+  @@index([category])
+  @@map("expenses")
+}
+
+model Budget {
+  id          Int       @id @default(autoincrement())
+  amount      Decimal   @db.Decimal(10, 2)
+  period      String    @default("monthly") // daily, weekly, monthly, yearly
   
-  // Optional receipt/image attachment
-  receiptUrl  String?
+  // Relationships
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
   @@index([userId])
-  @@index([categoryId])
-  @@index([date])
-  @@map("expenses")
+  @@index([period])
+  @@unique([userId, period]) // One budget per user per period
+  @@map("budgets")
 }

@@ -21,9 +21,19 @@ export class AuthController {
     const user = await this.usersService.create(createUserDto);
     const { password, ...result } = user;
     return {
-      message: 'User registered successfully',
-      user: result,
+      success: true,
+      data: {
+        message: 'User registered successfully',
+        user: result,
+      },
     };
+  }
+
+  @Public()
+  @Post('signup')
+  async signup(@Body() createUserDto: CreateUserDto) {
+    // Alias for register endpoint
+    return this.register(createUserDto);
   }
 
   @Public()
@@ -31,7 +41,11 @@ export class AuthController {
   @UseGuards(LocalAuthGuard)
   @Post('login')
   async login(@Request() req) {
-    return this.authService.login(req.user);
+    const loginResult = await this.authService.login(req.user);
+    return {
+      success: true,
+      data: loginResult,
+    };
   }
 
   @Public()

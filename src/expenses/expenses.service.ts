@@ -3,358 +3,181 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
 import { ExpenseQueryDto } from './dto/expense-query.dto';
-import { Role } from '../common/enums/role.enum';
 
 @Injectable()
 export class ExpensesService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Create a new expense
-   * Users can only create expenses for themselves
-   * Owners can create expenses for themselves or their employees
+   * Get date range for period filtering
    */
-  async create(
-    userId: number,
-    userRole: Role,
-    createExpenseDto: CreateExpenseDto,
-    targetUserId?: number,
-  ) {
-    // Determine the actual user ID for the expense
-    const expenseUserId = targetUserId || userId;
+  private getPeriodDateRange(period: string): { start: Date; end: Date } {
+    const now = new Date();
+    let start: Date;
+    let end: Date;
 
-    // If trying to create for another user, verify permissions
-    if (expenseUserId !== userId) {
-      // Only OWNER or ADMIN can create expenses for other users
-      if (userRole !== Role.OWNER && userRole !== Role.ADMIN) {
-        throw new ForbiddenException('You can only create expenses for yourself');
-      }
-      // Verify the target user is an employee of the owner
-      await this.verifyOwnership(userId, expenseUserId);
+    switch (period) {
+      case 'daily':
+        start = new Date(now);
+        start.setHours(0, 0, 0, 0);
+        end = new Date(now);
+        end.setHours(23, 59, 59, 999);
+        break;
+      case 'weekly':
+        // Get Monday of current week
+        const day = now.getDay();
+        const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+        start = new Date(now);
+        start.setDate(diff);
+        start.setHours(0, 0, 0, 0);
+        // Get Sunday of current week
+        end = new Date(start);
+        end.setDate(start.getDate() + 6);
+        end.setHours(23, 59, 59, 999);
+        break;
+      case 'monthly':
+        start = new Date(now.getFullYear(), now.getMonth(), 1);
+        start.setHours(0, 0, 0, 0);
+        end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        end.setHours(23, 59, 59, 999);
+        break;
+      case 'yearly':
+        start = new Date(now.getFullYear(), 0, 1);
+        start.setHours(0, 0, 0, 0);
+        end = new Date(now.getFullYear(), 11, 31);
+        end.setHours(23, 59, 59, 999);
+        break;
+      default:
+        start = new Date(0); // Beginning of time
+        end = new Date(); // Now
     }
 
-    // Verify category exists
-    const category = await this.prisma.expenseCategory.findUnique({
-      where: { id: createExpenseDto.categoryId },
-    });
-
-    if (!category) {
-      throw new NotFoundException(`Category with ID ${createExpenseDto.categoryId} not found`);
-    }
-
-    return await this.prisma.expense.create({
-      data: {
-        amount: createExpenseDto.amount,
-        description: createExpenseDto.description,
-        date: createExpenseDto.date ? new Date(createExpenseDto.date) : new Date(),
-        categoryId: createExpenseDto.categoryId,
-        receiptUrl: createExpenseDto.receiptUrl,
-        userId: expenseUserId,
-      },
-      include: {
-        category: true,
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
-    });
+    return { start, end };
   }
 
   /**
-   * Find all expenses with filtering
-   * Owners can see all expenses (their own + employees)
-   * Regular users can only see their own expenses
+   * Transform expense to API format
    */
-  async findAll(userId: number, userRole: Role, query: ExpenseQueryDto) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      include: { 
-        employees: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
+  private transformExpense(expense: any) {
+    return {
+      id: expense.id,
+      title: expense.title || '',
+      amount: Number(expense.amount),
+      date: expense.date.toISOString(),
+      category: expense.category,
+      description: expense.description || null,
+      userId: expense.userId.toString(),
+      createdAt: expense.createdAt.toISOString(),
+      updatedAt: expense.updatedAt.toISOString(),
+    };
+  }
+
+  /**
+   * Create a new expense for the authenticated user
+   */
+  async create(userId: number, createExpenseDto: CreateExpenseDto) {
+    const expense = await this.prisma.expense.create({
+      data: {
+        title: createExpenseDto.title,
+        amount: createExpenseDto.amount,
+        description: createExpenseDto.description,
+        date: new Date(createExpenseDto.date),
+        category: createExpenseDto.category,
+        userId: userId,
       },
     });
 
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
+    return this.transformExpense(expense);
+  }
 
-    // Build where clause based on user role
-    const where: any = {};
+  /**
+   * Find all expenses for the authenticated user with optional period filtering
+   */
+  async findAll(userId: number, query: ExpenseQueryDto) {
+    const where: any = {
+      userId: userId,
+    };
 
-    if (userRole === Role.OWNER || userRole === Role.ADMIN) {
-      // Owners can see their own expenses + all employees' expenses
-      const employeeIds = (user.employees || []).map((emp: { id: number }) => emp.id);
-      where.userId = {
-        in: [userId, ...employeeIds],
+    // Apply period filter if provided
+    if (query.period) {
+      const { start, end } = this.getPeriodDateRange(query.period);
+      where.date = {
+        gte: start,
+        lte: end,
       };
-    } else {
-      // Regular users can only see their own expenses
-      where.userId = userId;
     }
 
-    // Apply filters
-    if (query.categoryId) {
-      where.categoryId = query.categoryId;
-    }
+    const expenses = await this.prisma.expense.findMany({
+      where,
+      orderBy: { date: 'desc' },
+    });
 
-    if (query.startDate || query.endDate) {
-      where.date = {};
-      if (query.startDate) {
-        where.date.gte = new Date(query.startDate);
-      }
-      if (query.endDate) {
-        where.date.lte = new Date(query.endDate);
-      }
-    }
+    const transformedExpenses = expenses.map((exp) => this.transformExpense(exp));
 
-    if (query.userId && (userRole === Role.OWNER || userRole === Role.ADMIN)) {
-      // Verify the requested user is an employee
-      const isEmployee = (user.employees || []).some((emp: { id: number }) => emp.id === query.userId);
-      if (isEmployee || query.userId === userId) {
-        where.userId = query.userId;
-      } else {
-        throw new ForbiddenException('You can only view expenses for yourself or your employees');
-      }
-    }
-
-    const page = query.page || 1;
-    const limit = query.limit || 10;
-    const skip = (page - 1) * limit;
-
-    const [expenses, total] = await Promise.all([
-      this.prisma.expense.findMany({
-        where,
-        include: {
-          category: true,
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
-          },
-        },
-        orderBy: { date: 'desc' },
-        skip,
-        take: limit,
-      }),
-      this.prisma.expense.count({ where }),
-    ]);
+    // Calculate total and count
+    const total = expenses.reduce((sum, exp) => sum + Number(exp.amount), 0);
+    const count = expenses.length;
 
     return {
-      data: expenses,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
+      expenses: transformedExpenses,
+      total: Number(total.toFixed(2)),
+      count,
     };
   }
 
   /**
    * Find a single expense by ID
-   * Users can only view their own expenses
-   * Owners can view their own expenses + employees' expenses
    */
-  async findOne(id: number, userId: number, userRole: Role) {
+  async findOne(id: number, userId: number) {
     const expense = await this.prisma.expense.findUnique({
       where: { id },
-      include: {
-        category: true,
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
     });
 
     if (!expense) {
-      throw new NotFoundException(`Expense with ID ${id} not found`);
+      throw new NotFoundException('Expense not found');
     }
 
-    // Check access permissions
+    // Verify expense belongs to user
     if (expense.userId !== userId) {
-      if (userRole === Role.OWNER || userRole === Role.ADMIN) {
-        // Verify ownership
-        await this.verifyOwnership(userId, expense.userId);
-      } else {
-        throw new ForbiddenException('You can only view your own expenses');
-      }
+      throw new NotFoundException('Expense not found');
     }
 
-    return expense;
+    return this.transformExpense(expense);
   }
 
   /**
    * Update an expense
-   * Users can only update their own expenses
-   * Owners can update their own expenses + employees' expenses
    */
-  async update(id: number, userId: number, userRole: Role, updateExpenseDto: UpdateExpenseDto) {
-    const expense = await this.findOne(id, userId, userRole);
+  async update(id: number, userId: number, updateExpenseDto: UpdateExpenseDto) {
+    // Verify expense exists and belongs to user
+    const existingExpense = await this.findOne(id, userId);
 
-    // If category is being updated, verify it exists
-    if (updateExpenseDto.categoryId) {
-      const category = await this.prisma.expenseCategory.findUnique({
-        where: { id: updateExpenseDto.categoryId },
-      });
+    const updateData: any = {};
+    if (updateExpenseDto.title !== undefined) updateData.title = updateExpenseDto.title;
+    if (updateExpenseDto.amount !== undefined) updateData.amount = updateExpenseDto.amount;
+    if (updateExpenseDto.description !== undefined) updateData.description = updateExpenseDto.description;
+    if (updateExpenseDto.date !== undefined) updateData.date = new Date(updateExpenseDto.date);
+    if (updateExpenseDto.category !== undefined) updateData.category = updateExpenseDto.category;
 
-      if (!category) {
-        throw new NotFoundException(`Category with ID ${updateExpenseDto.categoryId} not found`);
-      }
-    }
-
-    return await this.prisma.expense.update({
+    const expense = await this.prisma.expense.update({
       where: { id },
-      data: {
-        ...updateExpenseDto,
-        date: updateExpenseDto.date ? new Date(updateExpenseDto.date) : undefined,
-      },
-      include: {
-        category: true,
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
+      data: updateData,
     });
+
+    return this.transformExpense(expense);
   }
 
   /**
    * Delete an expense
-   * Users can only delete their own expenses
-   * Owners can delete their own expenses + employees' expenses
    */
-  async remove(id: number, userId: number, userRole: Role) {
-    await this.findOne(id, userId, userRole); // This will check permissions
+  async remove(id: number, userId: number) {
+    // Verify expense exists and belongs to user
+    await this.findOne(id, userId);
 
     await this.prisma.expense.delete({
       where: { id },
     });
-  }
 
-  /**
-   * Get expense statistics/summary
-   * Owners get stats for themselves + all employees
-   * Regular users get stats only for themselves
-   */
-  async getStatistics(userId: number, userRole: Role, startDate?: string, endDate?: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      include: { 
-        employees: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
-    });
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    const where: any = {};
-
-    if (userRole === Role.OWNER || userRole === Role.ADMIN) {
-      const employeeIds = (user.employees || []).map((emp: { id: number }) => emp.id);
-      where.userId = {
-        in: [userId, ...employeeIds],
-      };
-    } else {
-      where.userId = userId;
-    }
-
-    if (startDate || endDate) {
-      where.date = {};
-      if (startDate) {
-        where.date.gte = new Date(startDate);
-      }
-      if (endDate) {
-        where.date.lte = new Date(endDate);
-      }
-    }
-
-    const expenses = await this.prisma.expense.findMany({
-      where,
-      include: {
-        category: true,
-        user: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
-    });
-
-    const totalAmount = expenses.reduce((sum, expense) => sum + Number(expense.amount), 0);
-    const categoryBreakdown = expenses.reduce((acc, expense) => {
-      const categoryName = expense.category.name;
-      if (!acc[categoryName]) {
-        acc[categoryName] = { category: categoryName, amount: 0, count: 0 };
-      }
-      acc[categoryName].amount += Number(expense.amount);
-      acc[categoryName].count += 1;
-      return acc;
-    }, {} as Record<string, { category: string; amount: number; count: number }>);
-
-    const userBreakdown = expenses.reduce((acc, expense) => {
-      const userName = expense.user.name;
-      if (!acc[userName]) {
-        acc[userName] = { user: userName, amount: 0, count: 0 };
-      }
-      acc[userName].amount += Number(expense.amount);
-      acc[userName].count += 1;
-      return acc;
-    }, {} as Record<string, { user: string; amount: number; count: number }>);
-
-    return {
-      totalAmount,
-      totalCount: expenses.length,
-      categoryBreakdown: Object.values(categoryBreakdown),
-      userBreakdown: Object.values(userBreakdown),
-      period: {
-        startDate: startDate || null,
-        endDate: endDate || null,
-      },
-    };
-  }
-
-  /**
-   * Verify that a user is the owner of another user
-   */
-  private async verifyOwnership(ownerId: number, employeeId: number): Promise<void> {
-    const employee = await this.prisma.user.findUnique({
-      where: { id: employeeId },
-    });
-
-    if (!employee) {
-      throw new NotFoundException(`User with ID ${employeeId} not found`);
-    }
-
-    // Type assertion: ownerId exists on User model but may not be in inferred type
-    const employeeWithOwner = employee as typeof employee & { ownerId: number | null };
-    if (employeeWithOwner.ownerId !== ownerId) {
-      throw new ForbiddenException('You can only manage expenses for your own employees');
-    }
+    return { message: 'Expense deleted successfully' };
   }
 }
-
