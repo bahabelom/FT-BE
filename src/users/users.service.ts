@@ -10,6 +10,9 @@ export class UsersService {
   constructor(private prisma: PrismaService) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
+
+    console.log("createUserDto", createUserDto);
+    
     // Check if user with email already exists
     const existingUser = await this.prisma.user.findUnique({
       where: { email: createUserDto.email },
@@ -24,9 +27,8 @@ export class UsersService {
 
     return await this.prisma.user.create({
       data: {
-        name: createUserDto.name,
+        name: `${createUserDto.firstName} ${createUserDto.lastName}`.trim(),
         email: createUserDto.email,
-        phone: createUserDto.phone,
         password: hashedPassword,
         role: 'user', // Default role for new registrations
       },

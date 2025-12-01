@@ -20,16 +20,13 @@ import { ExpenseQueryDto } from './dto/expense-query.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('expenses')
-// @UseGuards(JwtAuthGuard) // Temporarily disabled
+@UseGuards(JwtAuthGuard)
 export class ExpensesController {
   constructor(private readonly expensesService: ExpensesService) {}
 
-  // Helper to get user ID (with default when auth disabled)
+  // Helper to get user ID from JWT token
   private getUserId(req: any): number {
-    if (req.user) {
-      return req.user.sub || req.user.userId;
-    }
-    return 1; // Default user ID for development
+    return req.user.sub || req.user.userId;
   }
 
   /**

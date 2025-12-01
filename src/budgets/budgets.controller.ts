@@ -19,16 +19,13 @@ import { UpdateBudgetDto } from './dto/update-budget.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('budget')
-// @UseGuards(JwtAuthGuard) // Temporarily disabled
+@UseGuards(JwtAuthGuard)
 export class BudgetsController {
   constructor(private readonly budgetsService: BudgetsService) {}
 
-  // Helper to get user ID (with default when auth disabled)
+  // Helper to get user ID from JWT token
   private getUserId(req: any): number {
-    if (req.user) {
-      return req.user.sub || req.user.userId;
-    }
-    return 1; // Default user ID for development
+    return req.user.sub || req.user.userId;
   }
 
   /**
