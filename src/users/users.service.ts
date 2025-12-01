@@ -27,7 +27,8 @@ export class UsersService {
 
     return await this.prisma.user.create({
       data: {
-        name: `${createUserDto.firstName} ${createUserDto.lastName}`.trim(),
+        firstName: createUserDto.firstName,
+        lastName: createUserDto.lastName,
         email: createUserDto.email,
         password: hashedPassword,
         role: 'user', // Default role for new registrations
@@ -97,7 +98,8 @@ export class UsersService {
       select: {
         id: true,
         email: true,
-        name: true,
+        firstName: true,
+        lastName: true,
         role: true,
         createdAt: true,
         updatedAt: true,
@@ -134,7 +136,8 @@ export class UsersService {
       select: {
         id: true,
         email: true,
-        name: true,
+        firstName: true,
+        lastName: true,
         role: true,
         ownerId: true,
         createdAt: true,

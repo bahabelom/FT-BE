@@ -26,7 +26,10 @@ export class AuthService {
 
     if (user && await bcrypt.compare(password, user.password)) {
       const { password: _, ...result } = user;
-      return result as UserPayloadDto;
+      return {
+        ...result,
+        name: `${user.firstName} ${user.lastName}`.trim(),
+      } as UserPayloadDto;
     }
     return null;
   }
@@ -91,7 +94,7 @@ export class AuthService {
     return {
       id: user.id,
       email: user.email,
-      name: user.name,
+      name: `${user.firstName} ${user.lastName}`.trim(),
       role: user.role,
     };
   }
@@ -112,7 +115,7 @@ export class AuthService {
     return {
       id: user.id,
       email: user.email,
-      name: user.name,
+      name: `${user.firstName} ${user.lastName}`.trim(),
       role: user.role,
     };
   }
