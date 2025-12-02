@@ -1,8 +1,5 @@
-import { PartialType } from '@nestjs/mapped-types';
-import { CreateExpenseDto } from './create-expense.dto';
-import { IsOptional, IsNumber, IsString, IsDateString, Min, IsIn } from 'class-validator';
+import { IsOptional, IsNumber, IsString, IsDateString, Min, IsInt, Min as MinValue } from 'class-validator';
 import { Type } from 'class-transformer';
-import { EXPENSE_CATEGORIES } from './create-expense.dto';
 
 export class UpdateExpenseDto {
   @IsOptional()
@@ -20,11 +17,10 @@ export class UpdateExpenseDto {
   date?: string;
 
   @IsOptional()
-  @IsString()
-  @IsIn(EXPENSE_CATEGORIES, {
-    message: 'category must be one of: Food, Transport, Entertainment, Bills, Shopping, Health, Education, Other',
-  })
-  category?: string;
+  @IsInt()
+  @MinValue(1)
+  @Type(() => Number)
+  categoryId?: number;
 
   @IsOptional()
   @IsString()

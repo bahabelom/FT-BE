@@ -64,7 +64,7 @@ export class ExpensesService {
       title: expense.title || 'Untitled Expense',
       amount: Number(expense.amount),
       date: expense.date.toISOString(),
-      category: expense.category || 'Other',
+      category: expense.category?.name || 'Other',
       description: expense.description || null,
       userId: expense.userId.toString(),
       createdAt: expense.createdAt.toISOString(),
@@ -76,14 +76,26 @@ export class ExpensesService {
    * Create a new expense for the authenticated user
    */
   async create(userId: number, createExpenseDto: CreateExpenseDto) {
+    // Verify category exists
+    const category = await this.prisma.expenseCategory.findUnique({
+      where: { id: createExpenseDto.categoryId },
+    });
+
+    if (!category) {
+      throw new NotFoundException(`Category with ID ${createExpenseDto.categoryId} not found`);
+    }
+
     const expense = await this.prisma.expense.create({
       data: {
         title: createExpenseDto.title,
         amount: createExpenseDto.amount,
         description: createExpenseDto.description,
         date: new Date(createExpenseDto.date),
-        category: createExpenseDto.category,
+        categoryId: createExpenseDto.categoryId,
         userId: userId,
+      },
+      include: {
+        category: true,
       },
     });
 
@@ -109,6 +121,9 @@ export class ExpensesService {
 
     const expenses = await this.prisma.expense.findMany({
       where,
+      include: {
+        category: true,
+      },
       orderBy: { date: 'desc' },
     });
 
@@ -131,6 +146,9 @@ export class ExpensesService {
   async findOne(id: number, userId: number) {
     const expense = await this.prisma.expense.findUnique({
       where: { id },
+      include: {
+        category: true,
+      },
     });
 
     if (!expense) {
@@ -150,18 +168,32 @@ export class ExpensesService {
    */
   async update(id: number, userId: number, updateExpenseDto: UpdateExpenseDto) {
     // Verify expense exists and belongs to user
-    const existingExpense = await this.findOne(id, userId);
+    await this.findOne(id, userId);
+
+    // Verify category exists if categoryId is being updated
+    if (updateExpenseDto.categoryId !== undefined) {
+      const category = await this.prisma.expenseCategory.findUnique({
+        where: { id: updateExpenseDto.categoryId },
+      });
+
+      if (!category) {
+        throw new NotFoundException(`Category with ID ${updateExpenseDto.categoryId} not found`);
+      }
+    }
 
     const updateData: any = {};
     if (updateExpenseDto.title !== undefined) updateData.title = updateExpenseDto.title;
     if (updateExpenseDto.amount !== undefined) updateData.amount = updateExpenseDto.amount;
     if (updateExpenseDto.description !== undefined) updateData.description = updateExpenseDto.description;
     if (updateExpenseDto.date !== undefined) updateData.date = new Date(updateExpenseDto.date);
-    if (updateExpenseDto.category !== undefined) updateData.category = updateExpenseDto.category;
+    if (updateExpenseDto.categoryId !== undefined) updateData.categoryId = updateExpenseDto.categoryId;
 
     const expense = await this.prisma.expense.update({
       where: { id },
       data: updateData,
+      include: {
+        category: true,
+      },
     });
 
     return this.transformExpense(expense);

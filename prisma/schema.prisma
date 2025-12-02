@@ -47,14 +47,16 @@ model OwnerEmployee {
   @@map("owner_employees")
 }
 
-// ExpenseCategory model kept for backward compatibility but not used in new API
-// Categories are now stored as strings in Expense model
+// ExpenseCategory model for expense categorization
 model ExpenseCategory {
   id          Int       @id @default(autoincrement())
   name        String
   description String?
   color       String?   // For UI display
   icon        String?   // For UI display
+  
+  // Relationships
+  expenses    Expense[]
   
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -69,18 +71,20 @@ model Expense {
   amount      Decimal   @db.Decimal(10, 2) // Supports up to 99,999,999.99
   description String?
   date        DateTime  @default(now())
-  category    String?   // Category as string: Food, Transport, Entertainment, Bills, Shopping, Health, Education, Other (optional for migration)
   
   // Relationships
   userId      Int
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  categoryId  Int
+  category    ExpenseCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
   @@index([userId])
   @@index([date])
-  @@index([category])
+  @@index([categoryId])
   @@map("expenses")
 }
 
