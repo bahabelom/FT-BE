@@ -6,7 +6,8 @@ import { Role } from '../../common/enums/role.enum';
 export class JwtPayloadDto {
   email: string;
   sub: number; // user ID
-  name: string;
+  firstName: string;
+  lastName: string;
   role: Role;
   type: 'access' | 'refresh';
 }

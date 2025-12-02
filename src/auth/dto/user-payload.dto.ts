@@ -6,6 +6,7 @@ import { Role } from '../../common/enums/role.enum';
 export class UserPayloadDto {
   id: number;
   email: string;
-  name: string;
+  firstName: string;
+  lastName: string;
   role: Role;
 }

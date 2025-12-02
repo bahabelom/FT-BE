@@ -28,7 +28,8 @@ export class AuthService {
       const { password: _, ...result } = user;
       return {
         ...result,
-        name: `${user.firstName} ${user.lastName}`.trim(),
+        firstName: user.firstName,
+        lastName: user.lastName,
       } as UserPayloadDto;
     }
     return null;
@@ -38,7 +39,8 @@ export class AuthService {
     const payload: JwtPayloadDto = { 
       email: user.email, 
       sub: user.id, 
-      name: user.name,
+      firstName: user.firstName,
+      lastName: user.lastName,
       role: user.role,
       type: 'access'
     };
@@ -106,7 +108,8 @@ export class AuthService {
     return {
       id: user.id,
       email: user.email,
-      name: `${user.firstName} ${user.lastName}`.trim(),
+      firstName: user.firstName,
+      lastName: user.lastName,
       role: user.role,
     };
   }
@@ -127,7 +130,8 @@ export class AuthService {
     return {
       id: user.id,
       email: user.email,
-      name: `${user.firstName} ${user.lastName}`.trim(),
+      firstName: user.firstName,
+      lastName: user.lastName,
       role: user.role,
     };
   }

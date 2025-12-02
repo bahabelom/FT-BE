@@ -16,7 +16,7 @@ export class AuthController {
   ) {}
 
   @Public()
-  @Post('register')
+  @Post('signup')
   async register(@Body() createUserDto: CreateUserDto) {
     const user = await this.usersService.create(createUserDto);
     const { password, ...result } = user;
@@ -27,13 +27,6 @@ export class AuthController {
         user: result,
       },
     };
-  }
-
-  @Public()
-  @Post('signup')
-  async signup(@Body() createUserDto: CreateUserDto) {
-    // Alias for register endpoint
-    return this.register(createUserDto);
   }
 
   @Public()
