@@ -24,10 +24,7 @@ export class AuthController {
       success: true,
       data: {
         message: 'User registered successfully',
-        user: {
-          ...result,
-          name: `${user.firstName} ${user.lastName}`.trim(),
-        },
+        user: result,
       },
     };
   }

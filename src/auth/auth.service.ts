@@ -67,6 +67,16 @@ export class AuthService {
     
     // Hash and store the refresh token in database
     const hashedRefreshToken = await argon2.hash(tokens.refresh_token);
+    
+    
+    const fullUser = await this.prisma.user.findUnique({
+      where: { id: user.id },
+    }) as UserWithRole | null;
+    
+    if (!fullUser) {
+      throw new UnauthorizedException('User not found');
+    }
+    
     await this.prisma.user.update({
       where: { id: user.id },
       data: { refreshToken: hashedRefreshToken },
@@ -76,9 +86,11 @@ export class AuthService {
       message: 'Login successful',
       ...tokens,
       expires_in: 3600, // 1 hour (in seconds)
-      id: user.id,
-      email: user.email,
-      role: user.role ,
+      id: fullUser.id,
+      email: fullUser.email,
+      firstName: fullUser.firstName,
+      lastName: fullUser.lastName,
+      role: fullUser.role,
     };
   }
 
