@@ -11,8 +11,6 @@ export class UsersService {
 
   async create(createUserDto: CreateUserDto): Promise<User> {
 
-    console.log("createUserDto", createUserDto);
-    
     // Check if user with email already exists
     const existingUser = await this.prisma.user.findUnique({
       where: { email: createUserDto.email },
@@ -93,20 +91,28 @@ export class UsersService {
    * Get all employees under a specific owner
    */
   async getEmployees(ownerId: number) {
-    return await this.prisma.user.findMany({
+    const ownerEmployees = await this.prisma.ownerEmployee.findMany({
       where: { ownerId },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        role: true,
-        createdAt: true,
-        updatedAt: true,
-        ownerId: true,
+      include: {
+        employee: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            role: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
+
+    return ownerEmployees.map(oe => ({
+      ...oe.employee,
+      assignedAt: oe.createdAt,
+    }));
   }
 
   /**
@@ -114,51 +120,78 @@ export class UsersService {
    */
   async assignEmployee(ownerId: number, employeeId: number) {
     // Verify owner exists
-    const owner = await this.findOne(ownerId);
+    await this.findOne(ownerId);
     
     // Verify employee exists
-    const employee = await this.findOne(employeeId);
+    await this.findOne(employeeId);
 
     // Prevent self-assignment
     if (ownerId === employeeId) {
       throw new ConflictException('Cannot assign yourself as an employee');
     }
 
-    // Prevent circular relationships (employee cannot be an owner)
-    if (employee.ownerId) {
-      throw new ConflictException('User is already assigned to another owner');
-    }
-
-    // Update employee's ownerId
-    return await this.prisma.user.update({
-      where: { id: employeeId },
-      data: { ownerId },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        role: true,
-        ownerId: true,
-        createdAt: true,
-        updatedAt: true,
+    // Check if relationship already exists
+    const existing = await this.prisma.ownerEmployee.findUnique({
+      where: {
+        ownerId_employeeId: {
+          ownerId,
+          employeeId,
+        },
       },
     });
+
+    if (existing) {
+      throw new ConflictException('Employee is already assigned to this owner');
+    }
+
+    // Create the relationship in junction table
+    const ownerEmployee = await this.prisma.ownerEmployee.create({
+      data: {
+        ownerId,
+        employeeId,
+      },
+      include: {
+        employee: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            role: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
+      },
+    });
+
+    return {
+      ...ownerEmployee.employee,
+      assignedAt: ownerEmployee.createdAt,
+    };
   }
 
   /**
    * Remove an employee from an owner (unassign)
    */
   async unassignEmployee(ownerId: number, employeeId: number): Promise<void> {
-    const employee = await this.findOne(employeeId);
+    const ownerEmployee = await this.prisma.ownerEmployee.findUnique({
+      where: {
+        ownerId_employeeId: {
+          ownerId,
+          employeeId,
+        },
+      },
+    });
 
-    if (employee.ownerId !== ownerId) {
-      throw new ConflictException('User is not assigned to this owner');
+    if (!ownerEmployee) {
+      throw new ConflictException('Employee is not assigned to this owner');
     }
 
-    await this.prisma.user.update({
-      where: { id: employeeId },
-      data: { ownerId: null },
+    await this.prisma.ownerEmployee.delete({
+      where: {
+        id: ownerEmployee.id,
+      },
     });
   }
 }

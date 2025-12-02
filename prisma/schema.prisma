@@ -16,10 +16,9 @@ model User {
   role         String    @default("user")
   refreshToken String?
   
-  // Hierarchical relationship: owner-employee
-  ownerId      Int?      // ID of the owner (null for owners themselves)
-  owner        User?     @relation("OwnerEmployees", fields: [ownerId], references: [id], onDelete: Cascade)
-  employees    User[]    @relation("OwnerEmployees")
+  // Many-to-many relationship: owner-employee
+  ownedEmployees  OwnerEmployee[] @relation("Owner")
+  employeeOf       OwnerEmployee[] @relation("Employee")
   
   // Expense relationships
   expenses     Expense[]
@@ -28,8 +27,24 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  @@index([ownerId])
   @@map("users")
+}
+
+// Junction table for many-to-many owner-employee relationship
+model OwnerEmployee {
+  id         Int      @id @default(autoincrement())
+  ownerId    Int      // Owner user ID
+  employeeId Int      // Employee user ID
+  owner      User     @relation("Owner", fields: [ownerId], references: [id], onDelete: Cascade)
+  employee   User     @relation("Employee", fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([ownerId, employeeId]) // Prevent duplicate assignments
+  @@index([ownerId])
+  @@index([employeeId])
+  @@map("owner_employees")
 }
 
 // ExpenseCategory model kept for backward compatibility but not used in new API
