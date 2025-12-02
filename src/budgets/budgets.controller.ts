@@ -23,37 +23,23 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 export class BudgetsController {
   constructor(private readonly budgetsService: BudgetsService) {}
 
-  // Helper to get user ID from JWT token
   private getUserId(req: any): number {
-    return req.user.sub || req.user.userId;
+    return req.user?.userId || req.user?.sub;
   }
 
-  /**
-   * GET /budget - Get current budget (optionally filtered by period)
-   */
   @Get()
   async findOne(@Request() req, @Query('period') period?: string) {
     const userId = this.getUserId(req);
-    const data = await this.budgetsService.findOne(userId, period);
-    // Return data directly - interceptor will wrap it
-    return data;
+    return await this.budgetsService.findOne(userId, period);
   }
 
-  /**
-   * POST /budget - Create or update budget
-   */
   @Post()
   @HttpCode(HttpStatus.CREATED)
   async create(@Request() req, @Body() createBudgetDto: CreateBudgetDto) {
     const userId = this.getUserId(req);
-    const data = await this.budgetsService.createOrUpdate(userId, createBudgetDto);
-    // Return data directly - interceptor will wrap it
-    return data;
+    return await this.budgetsService.createOrUpdate(userId, createBudgetDto);
   }
 
-  /**
-   * PUT /budget/:id - Update budget
-   */
   @Put(':id')
   async update(
     @Request() req,
@@ -61,20 +47,13 @@ export class BudgetsController {
     @Body() updateBudgetDto: UpdateBudgetDto,
   ) {
     const userId = this.getUserId(req);
-    const data = await this.budgetsService.update(id, userId, updateBudgetDto);
-    // Return data directly - interceptor will wrap it
-    return data;
+    return await this.budgetsService.update(id, userId, updateBudgetDto);
   }
 
-  /**
-   * DELETE /budget/:id - Delete budget
-   */
   @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
   async remove(@Request() req, @Param('id', ParseIntPipe) id: number) {
     const userId = this.getUserId(req);
-    const data = await this.budgetsService.remove(id, userId);
-    // Return data directly - interceptor will wrap it
-    return data;
+    await this.budgetsService.remove(id, userId);
   }
 }
-

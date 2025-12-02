@@ -24,48 +24,29 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 export class ExpensesController {
   constructor(private readonly expensesService: ExpensesService) {}
 
-  // Helper to get user ID from JWT token
   private getUserId(req: any): number {
-    return req.user.sub || req.user.userId;
+    return req.user?.userId || req.user?.sub;
   }
 
-  /**
-   * GET /expenses - Get all expenses with optional period filter
-   */
   @Get()
   async findAll(@Request() req, @Query() query: ExpenseQueryDto) {
     const userId = this.getUserId(req);
-    const data = await this.expensesService.findAll(userId, query);
-    // Return data directly - interceptor will wrap it
-    return data;
+    return await this.expensesService.findAll(userId, query);
   }
 
-  /**
-   * GET /expenses/:id - Get single expense
-   */
   @Get(':id')
   async findOne(@Request() req, @Param('id', ParseIntPipe) id: number) {
     const userId = this.getUserId(req);
-    const data = await this.expensesService.findOne(id, userId);
-    // Return data directly - interceptor will wrap it
-    return data;
+    return await this.expensesService.findOne(id, userId);
   }
 
-  /**
-   * POST /expenses - Create new expense
-   */
   @Post()
   @HttpCode(HttpStatus.CREATED)
   async create(@Request() req, @Body() createExpenseDto: CreateExpenseDto) {
     const userId = this.getUserId(req);
-    const data = await this.expensesService.create(userId, createExpenseDto);
-    // Return data directly - interceptor will wrap it
-    return data;
+    return await this.expensesService.create(userId, createExpenseDto);
   }
 
-  /**
-   * PUT /expenses/:id - Update expense
-   */
   @Put(':id')
   async update(
     @Request() req,
@@ -73,19 +54,13 @@ export class ExpensesController {
     @Body() updateExpenseDto: UpdateExpenseDto,
   ) {
     const userId = this.getUserId(req);
-    const data = await this.expensesService.update(id, userId, updateExpenseDto);
-    // Return data directly - interceptor will wrap it
-    return data;
+    return await this.expensesService.update(id, userId, updateExpenseDto);
   }
 
-  /**
-   * DELETE /expenses/:id - Delete expense
-   */
   @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
   async remove(@Request() req, @Param('id', ParseIntPipe) id: number) {
     const userId = this.getUserId(req);
-    const data = await this.expensesService.remove(id, userId);
-    // Return data directly - interceptor will wrap it
-    return data;
+    await this.expensesService.remove(id, userId);
   }
 }

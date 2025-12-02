@@ -20,8 +20,10 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Role } from '../common/enums/role.enum';
 
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+
 @Controller('users')
-// @UseGuards(RolesGuard) // Temporarily disabled
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
@@ -40,9 +42,16 @@ export class UsersController {
 
   @Get('profile')
   getProfile(@Request() req) {
+    const userId = req.user?.userId || req.user?.sub;
     return {
       message: 'User profile retrieved successfully',
-      user: req.user,
+      user: {
+        id: userId,
+        email: req.user?.email,
+        firstName: req.user?.firstName,
+        lastName: req.user?.lastName,
+        role: req.user?.role,
+      },
     };
   }
 
@@ -77,7 +86,8 @@ export class UsersController {
   @Roles(Role.OWNER)
   @Get('employees')
   getEmployees(@Request() req) {
-    return this.usersService.getEmployees(req.user.sub);
+    const ownerId = req.user?.userId || req.user?.sub;
+    return this.usersService.getEmployees(ownerId);
   }
 
   @Roles(Role.OWNER)
@@ -87,7 +97,8 @@ export class UsersController {
     @Request() req,
     @Param('employeeId', ParseIntPipe) employeeId: number,
   ) {
-    return this.usersService.assignEmployee(req.user.sub, employeeId);
+    const ownerId = req.user?.userId || req.user?.sub;
+    return this.usersService.assignEmployee(ownerId, employeeId);
   }
 
   @Roles(Role.OWNER)
@@ -97,7 +108,8 @@ export class UsersController {
     @Request() req,
     @Param('employeeId', ParseIntPipe) employeeId: number,
   ) {
-    return this.usersService.unassignEmployee(req.user.sub, employeeId);
+    const ownerId = req.user?.userId || req.user?.sub;
+    return this.usersService.unassignEmployee(ownerId, employeeId);
   }
 }
 
