@@ -31,7 +31,9 @@ export class ExpensesController {
   @Get()
   async findAll(@Request() req, @Query() query: ExpenseQueryDto) {
     const userId = this.getUserId(req);
-    return await this.expensesService.findAll(userId, query);
+    const response = await this.expensesService.findAll(userId, query);
+    console.log('GET /api/expenses response:', JSON.stringify(response, null, 2));
+    return response;
   }
 
   @Get(':id')
