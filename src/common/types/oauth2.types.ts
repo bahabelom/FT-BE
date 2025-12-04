@@ -20,6 +20,8 @@ export interface OAuth2UserProfile {
   id: string;
   email: string;
   name: string;
+  firstName?: string;
+  lastName?: string;
   picture?: string;
   provider: OAuth2Provider;
   providerId: string;

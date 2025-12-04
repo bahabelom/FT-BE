@@ -18,15 +18,35 @@ export class GoogleOAuth2Strategy extends PassportStrategy(Strategy, 'google') {
   async validate(
     accessToken: string,
     refreshToken: string,
-    profile: GoogleOAuth2Profile,
+    profile: any,
     done: VerifyCallback,
   ): Promise<any> {
-    const { id, name, email, given_name, family_name, picture } = profile;
+    // passport-google-oauth20 profile structure:
+    // profile.id, profile.displayName, profile.name.givenName, profile.name.familyName
+    // profile.emails[0].value, profile.photos[0].value
+    
+    const id = profile.id || profile.sub || '';
+    const email = profile.emails?.[0]?.value || profile.email || '';
+    const displayName = profile.displayName || profile.name || '';
+    const givenName = profile.name?.givenName || profile.given_name || '';
+    const familyName = profile.name?.familyName || profile.family_name || '';
+    const picture = profile.photos?.[0]?.value || profile.picture || '';
+    
+    // Ensure name is a string
+    const name = typeof displayName === 'string' 
+      ? displayName 
+      : `${givenName || ''} ${familyName || ''}`.trim() || email.split('@')[0];
+    
+    // Extract firstName and lastName
+    const firstName = givenName || (typeof name === 'string' ? name.split(/\s+/)[0] : '') || email.split('@')[0] || '';
+    const lastName = familyName || (typeof name === 'string' ? name.split(/\s+/).slice(1).join(' ') : '') || '';
     
     const user: OAuth2UserProfile = {
       id: id,
-      email: email || '',
-      name: name || `${given_name || ''} ${family_name || ''}`.trim(),
+      email: email,
+      name: name,
+      firstName: firstName,
+      lastName: lastName,
       picture: picture,
       provider: OAuth2Provider.GOOGLE,
       providerId: id,

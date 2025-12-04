@@ -5,8 +5,10 @@ import { PrismaService } from '../prisma/prisma.service';
 import { UserPayloadDto } from './dto/user-payload.dto';
 import { JwtPayloadDto } from './dto/jwt-payload.dto';
 import { UserWithRole } from '../common/types/user-with-role.type';
+import { OAuth2UserProfile } from '../common/types/oauth2.types';
 import * as bcrypt from 'bcrypt';
 import * as argon2 from 'argon2';
+import * as crypto from 'crypto';
 
 // We'll use database storage instead of in-memory blacklist
 
@@ -164,5 +166,66 @@ export class AuthService {
     });
     
     return { message: 'Logged out successfully' };
+  }
+
+  /**
+   * Find or create a user from OAuth2 profile
+   */
+  async findOrCreateOAuthUser(profile: OAuth2UserProfile): Promise<UserPayloadDto> {
+    // Try to find existing user by email
+    let user = await this.prisma.user.findUnique({
+      where: { email: profile.email },
+    }) as UserWithRole | null;
+
+    if (user) {
+      // User exists, return user payload
+      return {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+      };
+    }
+
+    // User doesn't exist, create new user
+    // Use firstName/lastName from profile if available, otherwise split name
+    const nameStr = typeof profile.name === 'string' ? profile.name : '';
+    const firstName = profile.firstName || (nameStr ? nameStr.trim().split(/\s+/)[0] : '') || profile.email.split('@')[0];
+    const lastName = profile.lastName || (nameStr ? nameStr.trim().split(/\s+/).slice(1).join(' ') : '');
+
+    // Generate a random secure password for OAuth users (they won't use it)
+    const randomPassword = crypto.randomBytes(32).toString('hex');
+    const hashedPassword = await bcrypt.hash(randomPassword, 10);
+
+    // Create new user
+    const newUser = await this.prisma.user.create({
+      data: {
+        email: profile.email,
+        firstName,
+        lastName,
+        password: hashedPassword,
+        role: 'user', // Default role for OAuth users
+      },
+    }) as UserWithRole;
+
+    return {
+      id: newUser.id,
+      email: newUser.email,
+      firstName: newUser.firstName,
+      lastName: newUser.lastName,
+      role: newUser.role,
+    };
+  }
+
+  /**
+   * Handle OAuth2 login flow
+   */
+  async handleOAuthLogin(profile: OAuth2UserProfile): Promise<any> {
+    // Find or create user from OAuth profile
+    const user = await this.findOrCreateOAuthUser(profile);
+
+    // Generate tokens and login (same as regular login)
+    return this.login(user);
   }
 }

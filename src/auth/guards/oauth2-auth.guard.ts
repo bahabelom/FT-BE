@@ -27,3 +27,16 @@ export class GitHubOAuth2AuthGuard extends AuthGuard('github') {
     return result;
   }
 }
+
+@Injectable()
+export class FacebookOAuth2AuthGuard extends AuthGuard('facebook') {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const result = (await super.canActivate(context)) as boolean;
+    const request = context.switchToHttp().getRequest();
+    
+    // Log OAuth2 authentication attempt
+    console.log(`🔐 [FACEBOOK OAUTH2] Authentication attempt for user: ${request.user?.email || 'unknown'}`);
+    
+    return result;
+  }
+}

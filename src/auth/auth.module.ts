@@ -7,6 +7,8 @@ import { AuthController } from './auth.controller';
 import { LocalStrategy } from './strategies/local.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { RefreshJwtStrategy } from './strategies/refresh-jwt.strategy';
+import { GoogleOAuth2Strategy } from './strategies/google-oauth2.strategy';
+import { FacebookOAuth2Strategy } from './strategies/facebook-oauth2.strategy';
 import { UsersModule } from '../users/users.module';
 import jwtConfig from './config/jwt.config';
 
@@ -25,6 +27,8 @@ import jwtConfig from './config/jwt.config';
     LocalStrategy, 
     JwtStrategy, 
     RefreshJwtStrategy,
+    GoogleOAuth2Strategy,
+    FacebookOAuth2Strategy,
     {
       provide: 'REFRESH_JWT_SERVICE',
       useFactory: (configService: ConfigService) => {
