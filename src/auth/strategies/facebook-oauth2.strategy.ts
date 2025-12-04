@@ -19,19 +19,21 @@ export class FacebookOAuth2Strategy extends PassportStrategy(Strategy, 'facebook
   async validate(
     accessToken: string,
     refreshToken: string,
-    profile: Profile,
+    profile: any,
     done: (err: any, user: any) => void,
   ): Promise<any> {
     // passport-facebook profile structure:
     // profile.id, profile.displayName, profile.name.givenName, profile.name.familyName
     // profile.emails[0].value, profile.photos[0].value
+    // Also may have: profile._json.first_name, profile._json.last_name, profile._json.email, profile._json.picture
     
     const id = profile.id || '';
-    const email = profile.emails?.[0]?.value || profile.email || '';
+    // Try multiple ways to get email
+    const email = profile.emails?.[0]?.value || profile._json?.email || '';
     const displayName = profile.displayName || profile.name || '';
-    const givenName = profile.name?.givenName || profile.first_name || '';
-    const familyName = profile.name?.familyName || profile.last_name || '';
-    const picture = profile.photos?.[0]?.value || profile.picture?.data?.url || '';
+    const givenName = profile.name?.givenName || profile._json?.first_name || '';
+    const familyName = profile.name?.familyName || profile._json?.last_name || '';
+    const picture = profile.photos?.[0]?.value || profile._json?.picture?.data?.url || '';
     
     // Facebook might not provide email - generate a fallback if needed
     // Use Facebook ID as part of email if email is missing
