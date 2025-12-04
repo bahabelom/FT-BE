@@ -21,10 +21,7 @@ export class GoogleOAuth2Strategy extends PassportStrategy(Strategy, 'google') {
     profile: any,
     done: VerifyCallback,
   ): Promise<any> {
-    // passport-google-oauth20 profile structure:
-    // profile.id, profile.displayName, profile.name.givenName, profile.name.familyName
-    // profile.emails[0].value, profile.photos[0].value
-    
+
     const id = profile.id || profile.sub || '';
     const email = profile.emails?.[0]?.value || profile.email || '';
     const displayName = profile.displayName || profile.name || '';

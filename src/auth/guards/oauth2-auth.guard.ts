@@ -8,9 +8,6 @@ export class GoogleOAuth2AuthGuard extends AuthGuard('google') {
     const result = (await super.canActivate(context)) as boolean;
     const request = context.switchToHttp().getRequest();
     
-    // Log OAuth2 authentication attempt
-    console.log(`🔐 [GOOGLE OAUTH2] Authentication attempt for user: ${request.user?.email || 'unknown'}`);
-    
     return result;
   }
 }
@@ -21,9 +18,6 @@ export class GitHubOAuth2AuthGuard extends AuthGuard('github') {
     const result = (await super.canActivate(context)) as boolean;
     const request = context.switchToHttp().getRequest();
     
-    // Log OAuth2 authentication attempt
-    console.log(`🔐 [GITHUB OAUTH2] Authentication attempt for user: ${request.user?.email || 'unknown'}`);
-    
     return result;
   }
 }
@@ -33,9 +27,6 @@ export class FacebookOAuth2AuthGuard extends AuthGuard('facebook') {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const result = (await super.canActivate(context)) as boolean;
     const request = context.switchToHttp().getRequest();
-    
-    // Log OAuth2 authentication attempt
-    console.log(`🔐 [FACEBOOK OAUTH2] Authentication attempt for user: ${request.user?.email || 'unknown'}`);
     
     return result;
   }
