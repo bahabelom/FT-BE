@@ -15,6 +15,19 @@ export class GoogleOAuth2Strategy extends PassportStrategy(Strategy, 'google') {
     });
   }
 
+  authenticate(req: any, options?: any) {
+    const opts = { ...(options || {}) };
+    opts.prompt = 'select_account';
+    opts.accessType = 'offline';
+    
+    const redirectUri = req.query?.redirect_uri;
+    if (redirectUri) {
+      opts.state = encodeURIComponent(redirectUri);
+    }
+    
+    return super.authenticate(req, opts);
+  }
+
   async validate(
     accessToken: string,
     refreshToken: string,

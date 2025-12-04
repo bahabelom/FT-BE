@@ -16,6 +16,17 @@ export class FacebookOAuth2Strategy extends PassportStrategy(Strategy, 'facebook
     });
   }
 
+  authenticate(req: any, options?: any) {
+    const opts = { ...(options || {}) };
+    
+    const redirectUri = req.query?.redirect_uri;
+    if (redirectUri) {
+      opts.state = encodeURIComponent(redirectUri);
+    }
+    
+    return super.authenticate(req, opts);
+  }
+
   async validate(
     accessToken: string,
     refreshToken: string,

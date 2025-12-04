@@ -1,4 +1,5 @@
-import { Controller, Post, Body, UseGuards, Request, HttpCode, HttpStatus, UnauthorizedException, Get } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Request, HttpCode, HttpStatus, UnauthorizedException, Get, Res, Query } from '@nestjs/common';
+import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
 import { CreateUserDto } from '../users/dto/create-user.dto';
@@ -73,20 +74,35 @@ export class AuthController {
     // Guard initiates OAuth flow
   }
 
-  /**
-   * Handle Google OAuth callback
-   */
   @Public()
   @Get('google/callback')
   @UseGuards(GoogleOAuth2AuthGuard)
-  async googleAuthCallback(@Request() req) {
-    const profile = req.user; // OAuth2UserProfile from GoogleOAuth2Strategy
+  async googleAuthCallback(@Request() req, @Res() res: Response, @Query('state') state?: string) {
+    const profile = req.user;
     const loginResult = await this.authService.handleOAuthLogin(profile);
     
-    return {
+    const redirectUri = state ? decodeURIComponent(state) : null;
+    
+    if (redirectUri) {
+      const params = new URLSearchParams({
+        access_token: loginResult.access_token,
+        refresh_token: loginResult.refresh_token,
+        user: JSON.stringify({
+          id: loginResult.id,
+          email: loginResult.email,
+          firstName: loginResult.firstName,
+          lastName: loginResult.lastName,
+          role: loginResult.role,
+        }),
+      });
+      
+      return res.redirect(`${redirectUri}?${params.toString()}`);
+    }
+    
+    return res.json({
       success: true,
       data: loginResult,
-    };
+    });
   }
 
   /**
@@ -99,19 +115,34 @@ export class AuthController {
     // Guard initiates OAuth flow
   }
 
-  /**
-   * Handle Facebook OAuth callback
-   */
   @Public()
   @Get('facebook/callback')
   @UseGuards(FacebookOAuth2AuthGuard)
-  async facebookAuthCallback(@Request() req) {
-    const profile = req.user; // OAuth2UserProfile from FacebookOAuth2Strategy
+  async facebookAuthCallback(@Request() req, @Res() res: Response, @Query('state') state?: string) {
+    const profile = req.user;
     const loginResult = await this.authService.handleOAuthLogin(profile);
     
-    return {
+    const redirectUri = state ? decodeURIComponent(state) : null;
+    
+    if (redirectUri) {
+      const params = new URLSearchParams({
+        access_token: loginResult.access_token,
+        refresh_token: loginResult.refresh_token,
+        user: JSON.stringify({
+          id: loginResult.id,
+          email: loginResult.email,
+          firstName: loginResult.firstName,
+          lastName: loginResult.lastName,
+          role: loginResult.role,
+        }),
+      });
+      
+      return res.redirect(`${redirectUri}?${params.toString()}`);
+    }
+    
+    return res.json({
       success: true,
       data: loginResult,
-    };
+    });
   }
 }
